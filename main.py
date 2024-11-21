@@ -1,16 +1,55 @@
-# This is a sample Python script.
+from flask import Flask, request, send_file, jsonify
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
+import os
+from extruder import detect_edges, generate_depth_map, PROCESSED_FOLDER
+import warnings
+warnings.simplefilter('default')
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+app = Flask(__name__)
+CORS(app)
+
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+@app.route('/extrude', methods=['POST'])
+def extrude():
+    if 'image' not in request.files:
+        return "No file uploaded", 400
+
+    file = request.files['image']
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(file_path)
+
+    # Verificăm sau generăm harta de adâncime
+    depth_map_path = generate_depth_map(file_path)
+    print(f"Harta de adâncime folosită: {depth_map_path}")
+
+    # Detectarea contururilor (opțional)
+    output_path = detect_edges(file_path)
+    print(f"Imaginea procesată cu contururi: {output_path}")
+
+    return send_file(output_path, as_attachment=True)
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+@app.route('/depth_exists', methods=['POST'])
+def depth_exists():
+    data = request.json
+    image_name = data.get('image_name')
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    # Calea imaginii din depth
+    depth_path = os.path.join("depth_maps", image_name)
+    # Calea imaginii din processed
+    processed_path = os.path.join(PROCESSED_FOLDER, "edges_" + image_name)
+
+    if os.path.exists(depth_path):  # Verifică dacă imaginea din depth există
+        return jsonify({"exists": True, "processed_image_path": f"/processed/edges_{image_name}"})
+
+    # Chiar dacă imaginea din depth nu există, returnăm calea processed
+    return jsonify({"exists": False, "processed_image_path": f"/processed/edges_{image_name}"})
+
+
+if __name__ == "__main__":
+    app.run(port=5001)
