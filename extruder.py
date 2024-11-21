@@ -82,7 +82,6 @@ def detect_edges(image_path):
 
 def generate_depth_map(image_path):
 
-
     # Director pentru hărțile de adâncime
     h_map_folder = "depth_maps"
     os.makedirs(h_map_folder, exist_ok=True)
@@ -125,7 +124,7 @@ def generate_depth_map(image_path):
     return depth_map_path
 
 
-def overlay_edges(image_path):
+'''def overlay_edges(image_path):
     # Ajustează contrastul și luminozitatea imaginii
     adjusted_image_path = adjust_contrast_and_brightness(image_path)
     # Citește imaginea ajustată
@@ -140,3 +139,4 @@ def overlay_edges(image_path):
     output_path = os.path.splitext(image_path)[0] + "_overlay.jpg"
     cv2.imwrite(output_path, blended_image)
     return output_path
+'''
