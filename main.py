@@ -4,6 +4,8 @@ from werkzeug.utils import secure_filename
 import os
 from extruder import detect_edges, generate_depth_map, PROCESSED_FOLDER
 import warnings
+from  depth_processor import process_all_depth_maps
+
 warnings.simplefilter('default')
 
 app = Flask(__name__)
@@ -52,4 +54,6 @@ def depth_exists():
 
 
 if __name__ == "__main__":
+    depth_maps_directory = "depth_maps"
+    process_all_depth_maps(depth_maps_directory)
     app.run(port=5001)

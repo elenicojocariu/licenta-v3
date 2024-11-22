@@ -9,22 +9,6 @@ import numpy as np
 import open3d as o3d
 
 
-'''def extrude_image_to_3d(image_path, extrusion_depth=10):
-    # Încarcă imaginea și aplică transformarea 3D
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    _, thresh = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY)
-
-    # Creează mesh-ul (aceasta este o funcție exemplu)
-    vertices = []
-    faces = []
-    # (Definește-ți structura aici)
-
-    mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-    output_path = "output_model.obj"
-    mesh.export(output_path)
-    return output_path '''
-
-
 def convert_image_to_grayscale(image_path):
     # Încarcă imaginea în format color
     image = cv2.imread(image_path)
@@ -83,7 +67,6 @@ def detect_edges(image_path):
 
 
 def generate_depth_map(image_path):
-
     # Director pentru hărțile de adâncime
     h_map_folder = "depth_maps"
     os.makedirs(h_map_folder, exist_ok=True)
@@ -126,86 +109,76 @@ def generate_depth_map(image_path):
     return depth_map_path
 
 
-'''def overlay_edges(image_path):
-    # Ajustează contrastul și luminozitatea imaginii
-    adjusted_image_path = adjust_contrast_and_brightness(image_path)
-    # Citește imaginea ajustată
-    image = cv2.imread(adjusted_image_path)
-    # Detectează marginile
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray_image, threshold1=50, threshold2=150)
-    # Suprapune marginile peste imaginea originală
-    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    blended_image = cv2.addWeighted(image, 0.8, edges_colored, 0.2, 0)
-    # Salvează imaginea suprapusă
-    output_path = os.path.splitext(image_path)[0] + "_overlay.jpg"
-    cv2.imwrite(output_path, blended_image)
-    return output_path
-'''
-
-
-'''def generate_3d_model_from_depth(depth_map_path, output_path):
-    # Citește harta de adâncime
-    depth_image = cv2.imread(depth_map_path, cv2.IMREAD_GRAYSCALE)
-
-    # Creează puncte 3D din harta de adâncime
-    h, w = depth_image.shape
-    x, y = np.meshgrid(np.arange(w), np.arange(h))
-    z = depth_image.astype(np.float32) / 255.0  # Normalizare între 0 și 1
-
-    points = np.stack((x, y, z), axis=-1).reshape(-1, 3)
-
-    # Creează un mesh de tip "triangle"
-    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(
-        o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points)),
-        alpha=0.1  # Reglaj pentru densitatea triangulației
-    )
-
-    # Salvare model
-    o3d.io.write_triangle_mesh(output_path, mesh)
-    print(f"Model 3D salvat: {output_path}")'''
-
-
-def depth_map_to_3d(depth_map_path):
+def preprocess_depth_map(depth_map_path):
     """
-    Convertește o hartă de adâncime într-un model 3D extrudat și o afișează într-o fereastră Python.
-
-    :param depth_map_path: Calea către harta de adâncime.
+    Curăță și îmbunătățește harta de adâncime prin aplicarea unui filtru Gaussian.
     """
-    # Încarcă harta de adâncime
     depth_map = cv2.imread(depth_map_path, cv2.IMREAD_GRAYSCALE)
     if depth_map is None:
-        print(f"Nu s-a putut încărca harta de adâncime: {depth_map_path}")
-        return
+        raise ValueError(f"Nu s-a putut încărca harta de adâncime: {depth_map_path}")
 
-    # Obține dimensiunile imaginii
+    # Aplicăm un filtru Gaussian pentru a reduce zgomotul
+    smoothed_depth_map = cv2.GaussianBlur(depth_map, (5, 5), 0)
+
+    # Normalizăm valorile între 0 și 1
+    normalized_depth_map = smoothed_depth_map / 255.0
+
+    return normalized_depth_map
+
+
+def generate_3d_mesh(depth_map, edge_map=None):
+    """
+    Convertește o hartă de adâncime într-un model 3D extrudat.
+    """
     height, width = depth_map.shape
 
-    # Normalizează valorile hărții de adâncime între 0 și 1
-    depth_map_normalized = depth_map / 255.0
-
-    # Generează punctele 3D
+    # Generează punctele 3D din harta de adâncime
     points = []
     colors = []
+
+    depth_scale = 100
+
     for y in range(height):
         for x in range(width):
-            z = depth_map_normalized[y, x]  # Adâncimea ca valoare pe axa Z
-            points.append([x, y, z])  # Coordonate (X, Y, Z)
-            colors.append([z, z, z])  # Coduri de culoare (opțional, scală de gri)
-
+            z = depth_map[y, x] * depth_scale
+            if z > 0:  # Ignorăm punctele fără adâncime
+                points.append([x, height - y, z])  # Inversăm coordonata Y
+                colors.append([z/depth_scale, z/depth_scale, z/depth_scale])  # Scală de gri pentru culori
     points = np.array(points)
     colors = np.array(colors)
 
-    # Creează un nor de puncte utilizând Open3D
+    # Adăugăm punctele marginilor pentru detalii
+    if edge_map is not None:
+        edge_points = np.argwhere(edge_map > 0)
+        for y, x in edge_points:
+            points = np.append(points, [[x, y, depth_map[y, x]]], axis=0)
+            colors = np.append(colors, [[1, 0, 0]], axis=0)  # Culoare roșie pentru margini
+
+    # Creează un nor de puncte
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     pcd.colors = o3d.utility.Vector3dVector(colors)
 
-    # Opțional: creează o suprafață mesh utilizând punctele
-    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.03)
+    # Reconstrucție mesh 3D folosind Poisson Surface Reconstruction
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=5, max_nn=30))
+    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
     mesh.compute_vertex_normals()
 
-    # Afișează modelul 3D
-    o3d.visualization.draw_geometries([mesh], window_name="Model 3D Extrudat", width=800, height=600)
+    return mesh
 
-    print(f"Modelul 3D a fost generat și afișat pentru: {depth_map_path}")
+
+def depth_map_to_3d(depth_map_path):
+    """
+    Procesează o hartă de adâncime pentru a genera un model 3D.
+    """
+    # Preprocesăm harta de adâncime
+    depth_map = preprocess_depth_map(depth_map_path)
+
+    # Detectăm marginile
+    edge_map = cv2.Canny((depth_map * 255).astype(np.uint8), 50, 150)
+
+    # Generăm mesh-ul 3D
+    mesh = generate_3d_mesh(depth_map, edge_map)
+
+    # Afișăm mesh-ul
+    o3d.visualization.draw_geometries([mesh], window_name="Model 3D Extrudat", width=800, height=600)
