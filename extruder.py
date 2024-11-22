@@ -174,9 +174,9 @@ def depth_map_to_3d(depth_map_path):
     # Preprocesăm harta de adâncime
     depth_map = preprocess_depth_map(depth_map_path)
 
-    # Detectăm marginile
-    edge_map = cv2.Canny((depth_map * 255).astype(np.uint8), 50, 150)
-
+    # Detectăm marginile folosind funcția personalizată detect_edges
+    edge_image_path = detect_edges(depth_map_path)
+    edge_map = cv2.imread(edge_image_path, cv2.IMREAD_GRAYSCALE)
     # Generăm mesh-ul 3D
     mesh = generate_3d_mesh(depth_map, edge_map)
 

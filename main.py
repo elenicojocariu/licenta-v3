@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 import os
 from extruder import detect_edges, generate_depth_map, PROCESSED_FOLDER
 import warnings
-from  depth_processor import process_all_depth_maps
+from depth_processor import process_all_depth_maps
 
 warnings.simplefilter('default')
 
