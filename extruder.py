@@ -6,6 +6,8 @@ from torchvision.transforms import Compose, Resize, ToTensor, Normalize
 from PIL import Image
 import numpy as np
 
+import open3d as o3d
+
 
 '''def extrude_image_to_3d(image_path, extrusion_depth=10):
     # Încarcă imaginea și aplică transformarea 3D
@@ -140,3 +142,70 @@ def generate_depth_map(image_path):
     cv2.imwrite(output_path, blended_image)
     return output_path
 '''
+
+
+'''def generate_3d_model_from_depth(depth_map_path, output_path):
+    # Citește harta de adâncime
+    depth_image = cv2.imread(depth_map_path, cv2.IMREAD_GRAYSCALE)
+
+    # Creează puncte 3D din harta de adâncime
+    h, w = depth_image.shape
+    x, y = np.meshgrid(np.arange(w), np.arange(h))
+    z = depth_image.astype(np.float32) / 255.0  # Normalizare între 0 și 1
+
+    points = np.stack((x, y, z), axis=-1).reshape(-1, 3)
+
+    # Creează un mesh de tip "triangle"
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(
+        o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points)),
+        alpha=0.1  # Reglaj pentru densitatea triangulației
+    )
+
+    # Salvare model
+    o3d.io.write_triangle_mesh(output_path, mesh)
+    print(f"Model 3D salvat: {output_path}")'''
+
+
+def depth_map_to_3d(depth_map_path):
+    """
+    Convertește o hartă de adâncime într-un model 3D extrudat și o afișează într-o fereastră Python.
+
+    :param depth_map_path: Calea către harta de adâncime.
+    """
+    # Încarcă harta de adâncime
+    depth_map = cv2.imread(depth_map_path, cv2.IMREAD_GRAYSCALE)
+    if depth_map is None:
+        print(f"Nu s-a putut încărca harta de adâncime: {depth_map_path}")
+        return
+
+    # Obține dimensiunile imaginii
+    height, width = depth_map.shape
+
+    # Normalizează valorile hărții de adâncime între 0 și 1
+    depth_map_normalized = depth_map / 255.0
+
+    # Generează punctele 3D
+    points = []
+    colors = []
+    for y in range(height):
+        for x in range(width):
+            z = depth_map_normalized[y, x]  # Adâncimea ca valoare pe axa Z
+            points.append([x, y, z])  # Coordonate (X, Y, Z)
+            colors.append([z, z, z])  # Coduri de culoare (opțional, scală de gri)
+
+    points = np.array(points)
+    colors = np.array(colors)
+
+    # Creează un nor de puncte utilizând Open3D
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    pcd.colors = o3d.utility.Vector3dVector(colors)
+
+    # Opțional: creează o suprafață mesh utilizând punctele
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha=0.03)
+    mesh.compute_vertex_normals()
+
+    # Afișează modelul 3D
+    o3d.visualization.draw_geometries([mesh], window_name="Model 3D Extrudat", width=800, height=600)
+
+    print(f"Modelul 3D a fost generat și afișat pentru: {depth_map_path}")
