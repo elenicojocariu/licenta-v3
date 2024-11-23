@@ -38,8 +38,12 @@ def adjust_contrast_and_brightness(image_path, contrast=1.5, brightness=50):
     # Ajustează contrastul și luminozitatea
     adjusted_image = cv2.convertScaleAbs(image, alpha=contrast, beta=brightness)
 
-    # Salvează imaginea ajustată
-    output_path = os.path.splitext(image_path)[0] + "_adjusted.jpg"
+    # Creează folderul "adjusted-contrast" dacă nu există
+    adjusted_folder = "adjusted-contrast"
+    os.makedirs(adjusted_folder, exist_ok=True)
+
+    # Salvează imaginea ajustată în folderul "adjusted-contrast"
+    output_path = os.path.join(adjusted_folder, os.path.basename(image_path).replace(".jpg", "_adjusted.jpg"))
     cv2.imwrite(output_path, adjusted_image)
 
     return output_path
@@ -50,16 +54,26 @@ os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 
 def detect_edges(image_path):
-    # Ajustează contrastul și luminozitatea imaginii
+    # Verificăm dacă fișierul este deja o imagine procesată (_depth)
+    if "_depth" in image_path:
+        print(f"Imaginea {image_path} a fost deja procesată, o ignorăm.")
+        return None
+
+   # Ajustează contrastul și luminozitatea imaginii
     adjusted_image_path = adjust_contrast_and_brightness(image_path)
+
     # Citește imaginea ajustată
     image = cv2.imread(adjusted_image_path)
+
     # Convertește imaginea în grayscale pentru detectarea contururilor
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
     # Aplică algoritmul Canny pentru detectarea contururilor
     edges = cv2.Canny(gray_image, threshold1=50, threshold2=150)
+
     # Combină contururile detectate cu imaginea color
     edges_colored = cv2.bitwise_and(image, image, mask=edges)
+
     # Salvează imaginea cu contururile detectate
     output_path = os.path.join(PROCESSED_FOLDER, "edges_" + os.path.basename(image_path))
     cv2.imwrite(output_path, edges_colored)
@@ -78,9 +92,7 @@ def generate_depth_map(image_path):
         print(f"Harta de adâncime deja există: {depth_map_path}")
         return depth_map_path
 
-    adjusted_image_path = adjust_contrast_and_brightness(image_path)
-
-    # Transformările pentru modelul MiDaS
+    # Transformarile pentru modelul MiDaS
     transform = Compose([
         Resize(384),
         ToTensor(),
@@ -93,7 +105,7 @@ def generate_depth_map(image_path):
     model.eval()
 
     # Încarcă imaginea
-    img = Image.open(adjusted_image_path).convert("RGB")
+    img = Image.open(image_path).convert("RGB")
     input_batch = transform(img).unsqueeze(0)
 
     # Generăm harta de adâncime
@@ -143,7 +155,7 @@ def generate_3d_mesh(depth_map, edge_map=None):
             z = depth_map[y, x] * depth_scale
             if z > 0:  # Ignorăm punctele fără adâncime
                 points.append([x, height - y, z])  # Inversăm coordonata Y
-                colors.append([z/depth_scale, z/depth_scale, z/depth_scale])  # Scală de gri pentru culori
+                colors.append([z / depth_scale, z / depth_scale, z / depth_scale])  # Scală de gri pentru culori
     points = np.array(points)
     colors = np.array(colors)
 
