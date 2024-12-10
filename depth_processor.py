@@ -12,6 +12,19 @@ def process_all_depth_maps(depth_maps_dir):
 
     for file_name in os.listdir(depth_maps_dir):
         depth_map_path = os.path.join(depth_maps_dir, file_name)
+        # Eliminăm sufixul "_depth" din numele fișierului pentru a găsi imaginea originală
+        original_image_name = file_name.replace("_depth", "")
+        original_image_path = os.path.join("uploads", original_image_name)
+
+        # Verifică dacă fișierul de adâncime există
+        if not os.path.exists(depth_map_path):
+            print(f"Fișierul de adâncime {depth_map_path} nu există. Se trece peste.")
+            continue
+
+        # Verifică dacă fișierul original există
+        if not os.path.exists(original_image_path):
+            print(f"Fișierul original {original_image_path} nu există. Se trece peste.")
+            continue
 
         if os.path.isfile(depth_map_path) and file_name.endswith((".jpg", ".png")):
             print(f"Procesăm harta de adâncime: {depth_map_path}")

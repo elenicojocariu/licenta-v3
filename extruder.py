@@ -59,7 +59,12 @@ def detect_edges(image_path):
         print(f"Imaginea {image_path} a fost deja procesată, o ignorăm.")
         return None
 
-   # Ajustează contrastul și luminozitatea imaginii
+    output_path = os.path.join(PROCESSED_FOLDER, "edges_" + os.path.basename(image_path))
+    if os.path.exists(output_path):
+        print(f"Fisierul pentru margini exista deja: {output_path}")
+        return output_path
+
+    # Ajustează contrastul și luminozitatea imaginii
     adjusted_image_path = adjust_contrast_and_brightness(image_path)
 
     # Citește imaginea ajustată
@@ -69,7 +74,7 @@ def detect_edges(image_path):
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Aplică algoritmul Canny pentru detectarea contururilor
-    edges = cv2.Canny(gray_image, threshold1=50, threshold2=150)
+    edges = cv2.Canny(gray_image, threshold1=30, threshold2=100)
 
     # Combină contururile detectate cu imaginea color
     edges_colored = cv2.bitwise_and(image, image, mask=edges)
@@ -160,11 +165,14 @@ def generate_3d_mesh(depth_map, edge_map=None):
     colors = np.array(colors)
 
     # Adăugăm punctele marginilor pentru detalii
+
     if edge_map is not None:
         edge_points = np.argwhere(edge_map > 0)
         for y, x in edge_points:
             points = np.append(points, [[x, y, depth_map[y, x]]], axis=0)
             colors = np.append(colors, [[1, 0, 0]], axis=0)  # Culoare roșie pentru margini
+    print(f"Număr de puncte: {len(points)}, Culori adăugate: {len(colors)}")
+
 
     # Creează un nor de puncte
     pcd = o3d.geometry.PointCloud()
@@ -189,8 +197,9 @@ def depth_map_to_3d(depth_map_path):
     # Detectăm marginile folosind funcția personalizată detect_edges
     edge_image_path = detect_edges(depth_map_path)
     edge_map = cv2.imread(edge_image_path, cv2.IMREAD_GRAYSCALE)
+    print(f"sal {np.unique(edge_map)}")
     # Generăm mesh-ul 3D
-    mesh = generate_3d_mesh(depth_map, edge_map)
+    mesh = generate_3d_mesh(depth_map, edge_map )
 
     # Afișăm mesh-ul
     o3d.visualization.draw_geometries([mesh], window_name="Model 3D Extrudat", width=800, height=600)
