@@ -2,7 +2,7 @@ from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
-from extruder import detect_edges, generate_depth_map, PROCESSED_FOLDER
+from extruder import detect_edges, generate_depth_map, overlay_edges_on_original
 import warnings
 from depth_processor import process_all_depth_maps
 
@@ -25,13 +25,16 @@ def extrude():
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     file.save(file_path)
 
-    # Verificăm sau generăm harta de adâncime
-    depth_map_path = generate_depth_map(file_path)
+    # verif sau gen harta de  h
+    depth_map_path = generate_depth_map(filename, source_folder=UPLOAD_FOLDER)
     print(f"Harta de adâncime folosită: {depth_map_path}")
 
     # Detectarea contururilor (opțional)
     output_path = detect_edges(file_path)
     print(f"Imaginea procesată cu contururi: {output_path}")
+
+    postprocessed = overlay_edges_on_original(file_path)
+    print(f"img postprocesata: {postprocessed}")
 
     return send_file(output_path, as_attachment=True)
 
@@ -43,8 +46,6 @@ def depth_exists():
 
     # Calea imaginii din depth
     depth_path = os.path.join("depth_maps", image_name)
-    # Calea imaginii din processed
-    processed_path = os.path.join(PROCESSED_FOLDER, "edges_" + image_name)
 
     if os.path.exists(depth_path):  # Verifică dacă imaginea din depth există
         return jsonify({"exists": True, "processed_image_path": f"/processed/edges_{image_name}"})

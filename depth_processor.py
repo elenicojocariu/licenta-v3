@@ -13,7 +13,7 @@ def process_all_depth_maps(depth_maps_dir):
     for file_name in os.listdir(depth_maps_dir):
         depth_map_path = os.path.join(depth_maps_dir, file_name)
         # Eliminăm sufixul "_depth" din numele fișierului pentru a găsi imaginea originală
-        original_image_name = file_name.replace("_depth", "")
+        original_image_name = file_name.replace("_depth", "").replace("overlay_", "")
         original_image_path = os.path.join("uploads", original_image_name)
 
         # Verifică dacă fișierul de adâncime există
