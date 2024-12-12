@@ -115,7 +115,7 @@ POSTPROCESSED_FOLDER = "postprocessed"
 os.makedirs(POSTPROCESSED_FOLDER, exist_ok=True)
 
 
-def overlay_edges_on_original(image_path):
+'''def overlay_edges_on_original(image_path):
     # Vf daca fis este deja procesat
     output_path = os.path.join(POSTPROCESSED_FOLDER, "overlay_" + os.path.basename(image_path))
     if os.path.exists(output_path):
@@ -140,7 +140,7 @@ def overlay_edges_on_original(image_path):
     cv2.imwrite(output_path, overlay)
     print(f"Imaginea suprapusă a fost salvată în: {output_path}")
     return output_path
-
+'''
 
 def generate_depth_map(image_path, source_folder="uploads"):
     # Director pentru hărțile de adâncime
@@ -199,7 +199,7 @@ def preprocess_depth_map(depth_map_path):
     output_path = depth_map_path.replace("depth_maps", "processed_dept_maps")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cv2.imwrite(output_path, smoothed_depth_map)
-    print(f"Harta de adancime procesata si salvata: {output_path}")
+    #print(f"Harta de adancime procesata si salvata: {output_path}")
 
     # Normalizăm valorile între 0 și 1
     normalized_depth_map = smoothed_depth_map / 255.0
@@ -234,7 +234,7 @@ def generate_3d_mesh(depth_map, edge_map=None):
         for y, x in edge_points:
             points = np.append(points, [[x, y, depth_map[y, x]]], axis=0)
             colors = np.append(colors, [[1, 0, 0]], axis=0)  # Culoare roșie pentru margini
-    print(f"Număr de puncte: {len(points)}, Culori adăugate: {len(colors)}")
+        print(f"Numar de puncte: {len(points)}, Culori adăugate: {len(colors)}")
 
     # Creează un nor de puncte
     pcd = o3d.geometry.PointCloud()
@@ -253,13 +253,15 @@ def depth_map_to_3d(depth_map_path):
     """
     Procesează o hartă de adâncime pentru a genera un model 3D.
     """
-    # Preprocesăm harta de adâncime
     depth_map = preprocess_depth_map(depth_map_path)
 
-    # Detectăm marginile folosind funcția personalizată detect_edges
-    edge_image_path = detect_edges(depth_map_path)
-    edge_map = cv2.imread(edge_image_path, cv2.IMREAD_GRAYSCALE)
-    print(f"sal {np.unique(edge_map)}")
+    base_name = os.path.basename(depth_map_path).replace(".jpg", "")
+    edge_map_path = os.path.join(PROCESSED_FOLDER, f"edges_{base_name}.jpg")
+
+    edge_map = None
+    if os.path.exists(edge_map_path):
+        edge_map = cv2.imread(edge_map_path, cv2.IMREAD_GRAYSCALE)
+
     # Generăm mesh-ul 3D
     mesh = generate_3d_mesh(depth_map, edge_map)
 

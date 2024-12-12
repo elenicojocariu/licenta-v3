@@ -2,7 +2,7 @@ from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
-from extruder import detect_edges, generate_depth_map, overlay_edges_on_original
+from extruder import detect_edges, generate_depth_map
 import warnings
 from depth_processor import process_all_depth_maps
 
@@ -33,8 +33,8 @@ def extrude():
     output_path = detect_edges(file_path)
     print(f"Imaginea procesată cu contururi: {output_path}")
 
-    postprocessed = overlay_edges_on_original(file_path)
-    print(f"img postprocesata: {postprocessed}")
+    #postprocessed = overlay_edges_on_original(file_path)
+    #print(f"img postprocesata: {postprocessed}")
 
     return send_file(output_path, as_attachment=True)
 
