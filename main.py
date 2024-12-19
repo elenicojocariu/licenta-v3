@@ -33,9 +33,6 @@ def extrude():
     output_path = detect_edges(file_path)
     print(f"Imaginea procesată cu contururi: {output_path}")
 
-    #postprocessed = overlay_edges_on_original(file_path)
-    #print(f"img postprocesata: {postprocessed}")
-
     return send_file(output_path, as_attachment=True)
 
 

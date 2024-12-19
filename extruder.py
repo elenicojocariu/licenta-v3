@@ -8,85 +8,11 @@ import numpy as np
 
 import open3d as o3d
 
-'''def convert_image_to_grayscale(image_path):
-    # Încarcă imaginea în format color
-    image = cv2.imread(image_path)
-
-    # Transformă imaginea în alb-negru
-    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Salvează imaginea alb-negru într-o cale temporară
-    output_path = os.path.splitext(image_path)[0] + "_grayscale.jpg"
-    cv2.imwrite(output_path, grayscale_image)
-
-    return output_path
-'''
-
-'''def adjust_contrast_and_brightness(image_path, contrast=1.5, brightness=50):
-    """
-    Ajustează contrastul și luminozitatea unei imagini.
-
-    :param image_path: Calea către imaginea de intrare.
-    :param contrast: Factorul de contrast (default 1.5).
-    :param brightness: Valoarea de luminozitate adăugată (default 50).
-    :return: Calea către imaginea ajustată.
-    """
-    # Încarcă imaginea
-    image = cv2.imread(image_path)
-
-    # Ajustează contrastul și luminozitatea
-    adjusted_image = cv2.convertScaleAbs(image, alpha=contrast, beta=brightness)
-
-    # Creează folderul "adjusted-contrast" dacă nu există
-    adjusted_folder = "adjusted-contrast"
-    os.makedirs(adjusted_folder, exist_ok=True)
-
-    # Salvează imaginea ajustată în folderul "adjusted-contrast"
-    output_path = os.path.join(adjusted_folder, os.path.basename(image_path).replace(".jpg", "_adjusted.jpg"))
-    cv2.imwrite(output_path, adjusted_image)
-
-    return output_path
-'''
-
-'''def modif_image(image_path):
-    """
-    Modifică contrastul și luminozitatea unei imagini la valori maxime.
-
-    :param image_path: Calea către imaginea de intrare.
-    :return: Calea către imaginea ajustată.
-    """
-    # Încarcă imaginea
-    image = cv2.imread(image_path)
-
-    if image is None:
-        raise FileNotFoundError(f"Imaginea nu a fost găsită la calea: {image_path}")
-
-    # Setează valori maxime pentru contrast și luminozitate
-    contrast = 5.0  # Valoare ridicată pentru contrast
-    brightness = 5  # Valoare ridicată pentru luminozitate
-
-    # Ajustează contrastul și luminozitatea
-    adjusted_image = cv2.convertScaleAbs(image, alpha=contrast, beta=brightness)
-
-    # Creează folderul "adjusted" dacă nu există
-    adjusted_folder = "adjusted"
-    os.makedirs(adjusted_folder, exist_ok=True)
-
-    # Salvează imaginea ajustată în folderul "adjusted"
-    output_path = os.path.join(
-        adjusted_folder, os.path.basename(image_path).replace(".jpg", "_adjusted.jpg")
-    )
-    cv2.imwrite(output_path, adjusted_image)
-
-    return output_path
-'''
-
 PROCESSED_FOLDER = "processed"  # contururile
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 
 def detect_edges(image_path):
-    # Verificăm dacă fișierul este deja o imagine procesată (_depth)
     if "_depth" in image_path:
         print(f"Imaginea {image_path} a fost deja procesată, o ignorăm.")
         return None
@@ -114,33 +40,6 @@ def detect_edges(image_path):
 POSTPROCESSED_FOLDER = "postprocessed"
 os.makedirs(POSTPROCESSED_FOLDER, exist_ok=True)
 
-
-'''def overlay_edges_on_original(image_path):
-    # Vf daca fis este deja procesat
-    output_path = os.path.join(POSTPROCESSED_FOLDER, "overlay_" + os.path.basename(image_path))
-    if os.path.exists(output_path):
-        print(f"Fisierul suprapus există deja: {output_path}")
-        return output_path
-
-    image = cv2.imread(image_path)
-    if image is None:
-        print(f"Imaginea {image_path} nu a putut fi încărcată.")
-        return None
-
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray_image, threshold1=30, threshold2=100)
-
-    # Creăm o imagine color cu doar contururile
-    edges_colored = cv2.merge([edges, edges, edges])  # Facem imaginea în 3 canale (RGB)
-
-    # Suprapunem contururile peste imaginea originală (folosind alfa pentru transparență, dacă dorim)
-    overlay = cv2.addWeighted(image, 0.8, edges_colored, 0.5, 0)
-
-    # Salvăm imaginea suprapusă în folderul /postprocessed
-    cv2.imwrite(output_path, overlay)
-    print(f"Imaginea suprapusă a fost salvată în: {output_path}")
-    return output_path
-'''
 
 def generate_depth_map(image_path, source_folder="uploads"):
     # Director pentru hărțile de adâncime
@@ -199,7 +98,6 @@ def preprocess_depth_map(depth_map_path):
     output_path = depth_map_path.replace("depth_maps", "processed_dept_maps")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cv2.imwrite(output_path, smoothed_depth_map)
-    #print(f"Harta de adancime procesata si salvata: {output_path}")
 
     # Normalizăm valorile între 0 și 1
     normalized_depth_map = smoothed_depth_map / 255.0
@@ -245,7 +143,12 @@ def generate_3d_mesh(depth_map, edge_map=None):
     pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=5, max_nn=30))
     mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
     mesh.compute_vertex_normals()
+    x_min, x_max = np.min(points[:, 0]), np.max(points[:, 0])
+    y_min, y_max = np.min(points[:, 1]), np.max(points[:, 1])
 
+    width = x_max - x_min  # Lungimea (W)
+    height = y_max - y_min  # Lățimea (H)
+    print(f"Dimensiuni model extrdat: width: {width: .2f}, height: {height: .2f}")
     return mesh
 
 
@@ -254,6 +157,7 @@ def depth_map_to_3d(depth_map_path):
     Procesează o hartă de adâncime pentru a genera un model 3D.
     """
     depth_map = preprocess_depth_map(depth_map_path)
+    print(f"Dimensiuni hartă de adâncime: {depth_map.shape[1]} x {depth_map.shape[0]} (W x H)")
 
     base_name = os.path.basename(depth_map_path).replace(".jpg", "")
     edge_map_path = os.path.join(PROCESSED_FOLDER, f"edges_{base_name}.jpg")
@@ -265,5 +169,55 @@ def depth_map_to_3d(depth_map_path):
     # Generăm mesh-ul 3D
     mesh = generate_3d_mesh(depth_map, edge_map)
 
-    # Afișăm mesh-ul
-    o3d.visualization.draw_geometries([mesh], window_name="Model 3D Extrudat", width=800, height=600)
+    # Load the original image as a texture
+    base_name = os.path.basename(depth_map_path).replace("_depth", "").replace(".jpg", "")
+    original_image_path = os.path.join("uploads", f"{base_name}.jpg")
+
+    if not os.path.exists(original_image_path):
+        print(f"Texture image {original_image_path} not found.")
+        return
+
+    texture_image = cv2.imread(original_image_path)
+    if texture_image is None:
+        print(f"Failed to read texture image: {original_image_path}")
+        return
+    print(f"Dimensiuni imagine originală (textură): {texture_image.shape[1]} x {texture_image.shape[0]} (W x H)")
+
+    # Ensure the texture image has the same dimensions as the depth map
+    if (texture_image.shape[1], texture_image.shape[0]) != (depth_map.shape[1], depth_map.shape[0]):
+        print("Texture dimensions do not match the depth map dimensions. Resizing texture...")
+        texture_image = cv2.resize(texture_image, (depth_map.shape[1], depth_map.shape[0]))
+    print(f"Dimensiuni imagine după redimensionare: {texture_image.shape[1]} x {texture_image.shape[0]} (W x H)")
+    # Convert texture to RGB format for Open3D
+    texture_image = np.asarray(texture_image, dtype=np.float32) / 255.0  # Textura redimensionată ca float32
+
+    texture_pil = Image.fromarray((texture_image * 255).astype(np.uint8))
+    texture_path = os.path.join(POSTPROCESSED_FOLDER, f"texture_{base_name}.png")
+    texture_pil.save(texture_path)  # Save the texture image in PNG format for Open3D
+
+    # Încarcă textura din fișierul salvat
+    texture_pil = Image.open(texture_path)
+    texture_np = np.asarray(texture_pil, dtype=np.uint8)
+    texture_o3d = o3d.geometry.Image(texture_np)
+
+    # Assign UV coordinates and set the texture to the mesh
+    mesh.compute_vertex_normals()
+    uv_map = np.zeros((np.asarray(mesh.vertices).shape[0], 2))
+
+    # Simple UV mapping: normalized (x, y) positions
+    vertices = np.asarray(mesh.vertices)  # Convert to NumPy array
+    uv_map[:, 0] = (vertices[:, 0] - np.min(vertices[:, 0])) / (np.max(vertices[:, 0]) - np.min(vertices[:, 0]))
+    uv_map[:, 1] = (vertices[:, 1] - np.min(vertices[:, 1])) / (np.max(vertices[:, 1]) - np.min(vertices[:, 1]))
+
+    mesh.triangle_uvs = o3d.utility.Vector2dVector(uv_map)
+    mesh.textures = [texture_o3d]
+    mesh.compute_vertex_normals()
+
+    # Visualize the mesh with texture
+    material = o3d.visualization.rendering.MaterialRecord()
+    material.shader = "defaultLit"
+    # material.base_color = texture_image
+    # material.shader = "defaultLit"
+    material.albedo_img = texture_o3d
+
+    o3d.visualization.draw([{"name": "Mesh with Texture", "geometry": mesh, "material": material}])
