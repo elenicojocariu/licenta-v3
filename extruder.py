@@ -278,10 +278,12 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.0):
     mesh.compute_triangle_normals()
     mesh.orient_triangles()
 
-    # Salvează mesh-ul
-    mesh_path = os.path.join(MESHES_FOLDER, "textured_mesh.ply")
-    o3d.io.write_triangle_mesh(mesh_path, mesh)
-    print(f"Mesh-ul 3D cu textură a fost salvat: {mesh_path}")
+    base_name = os.path.splitext(os.path.basename(image_path))[0]
+    mesh_path = os.path.join(MESHES_FOLDER, f"{base_name}_extruded.obj")
+    o3d.io.write_triangle_mesh(mesh_path, mesh, write_vertex_colors=True)
+    print(f"Mesh 3d cu textura salvat in: {mesh_path}")
 
     # Vizualizează mesh-ul
     o3d.visualization.draw_geometries([mesh])
+
+    return mesh_path
