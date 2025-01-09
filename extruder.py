@@ -220,7 +220,27 @@ def preprocess_depth_map(depth_map_path):
     # Vizualizare mesh cu textură
     o3d.visualization.draw([{"name": "Mesh with Texture", "geometry": mesh, "material": material}])
 '''
-def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.0):
+
+
+def convert_to_gltf(obj_path, gltf_path):
+    if not os.path.exists(obj_path):
+        raise ValueError(f"Fișierul OBJ nu există: {obj_path}")
+
+    # Citim mesh-ul din fișierul OBJ
+    mesh = o3d.io.read_triangle_mesh(obj_path)
+    if not mesh.has_triangles():
+        raise ValueError("Mesh-ul citit nu conține triunghiuri valide.")
+
+    # Scriem mesh-ul în format GLTF
+    o3d.io.write_triangle_mesh(gltf_path, mesh, write_triangle_uvs=True)
+    print(f"Mesh convertit și salvat în GLTF: {gltf_path}")
+
+
+GLTF_FOLDER = "gltf_meshes"
+os.makedirs(GLTF_FOLDER, exist_ok=True)
+
+
+def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5):
     original_image = cv2.imread(image_path)
     original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)  # Convertim la RGB
 
@@ -230,7 +250,7 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.0):
 
     # Normalizez adancimea intre 0 si o valoare max
     depth_map = depth_map.astype(np.float32) / 255.0
-    depth_map *= z_scale*50.0
+    depth_map *= z_scale * 50.0
     h, w = depth_map.shape
 
     # Redimensionăm imaginea originală să corespundă dimensiunilor modelului 3D
@@ -269,7 +289,7 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.0):
 
     height, width, _ = original_image.shape
 
-    #print(f"Dimensiuni imagine originala: {width} x {height} (width x height)")
+    # print(f"Dimensiuni imagine originala: {width} x {height} (width x height)")
     x_min, x_max = np.min(vertices[:, 0]), np.max(vertices[:, 0])
     y_min, y_max = np.min(vertices[:, 1]), np.max(vertices[:, 1])
     print(f"Dimensiuni model 3D extrudat: width: {x_max - x_min:.2f}, height: {y_max - y_min:.2f}")
@@ -279,11 +299,15 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.0):
     mesh.orient_triangles()
 
     base_name = os.path.splitext(os.path.basename(image_path))[0]
-    mesh_path = os.path.join(MESHES_FOLDER, f"{base_name}_extruded.obj")
-    o3d.io.write_triangle_mesh(mesh_path, mesh, write_vertex_colors=True)
-    print(f"Mesh 3d cu textura salvat in: {mesh_path}")
+    obj_path = os.path.join(MESHES_FOLDER, f"{base_name}_extruded.obj")
+    o3d.io.write_triangle_mesh(obj_path, mesh, write_vertex_colors=True)
+    print(f"Mesh 3D cu textură salvat în: {obj_path}")
 
     # Vizualizează mesh-ul
-    o3d.visualization.draw_geometries([mesh])
+    #o3d.visualization.draw_geometries([mesh])
 
-    return mesh_path
+    # Convertim OBJ în GLTF
+    gltf_path = os.path.join(MESHES_FOLDER, f"{base_name}_extruded.gltf")
+    convert_to_gltf(obj_path, gltf_path)
+
+    return obj_path

@@ -1,5 +1,6 @@
 import os
 from extruder import create_3d_mesh_with_texture
+
 UPLOAD_FOLDER = "uploads"
 
 
@@ -7,7 +8,6 @@ def process_all_depth_maps(depth_maps_dir):
     """
    Procesează toate hărțile de adâncime și generează modele 3D cu textură.
    """
-
 
     if not os.path.exists(depth_maps_dir):
         print(f"Directorul {depth_maps_dir} nu există!")
@@ -32,6 +32,6 @@ def process_all_depth_maps(depth_maps_dir):
 
         print(f"Procesăm fișierul: {depth_map_path} cu imaginea originală: {original_image_path}")
         try:
-            create_3d_mesh_with_texture(original_image_path, depth_map_path, z_scale=2.0)
+            create_3d_mesh_with_texture(original_image_path, depth_map_path, z_scale=1.5)
         except Exception as e:
             print(f"Eroare la procesarea fișierului {depth_map_path}: {e}")
