@@ -299,15 +299,16 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5):
     mesh.orient_triangles()
 
     base_name = os.path.splitext(os.path.basename(image_path))[0]
+
     obj_path = os.path.join(MESHES_FOLDER, f"{base_name}_extruded.obj")
     o3d.io.write_triangle_mesh(obj_path, mesh, write_vertex_colors=True)
     print(f"Mesh 3D cu textură salvat în: {obj_path}")
 
     # Vizualizează mesh-ul
-    #o3d.visualization.draw_geometries([mesh])
+    # o3d.visualization.draw_geometries([mesh])
 
     # Convertim OBJ în GLTF
-    gltf_path = os.path.join(MESHES_FOLDER, f"{base_name}_extruded.gltf")
+    gltf_path = os.path.join(GLTF_FOLDER, f"{base_name}_extruded.gltf")
     convert_to_gltf(obj_path, gltf_path)
 
     return obj_path
