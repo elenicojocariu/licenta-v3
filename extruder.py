@@ -2,6 +2,7 @@ import cv2
 import os
 
 import torch
+import matplotlib.pyplot as plt
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize
 from PIL import Image
 import numpy as np
@@ -14,8 +15,8 @@ os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 MESHES_FOLDER = "meshes"
 os.makedirs(MESHES_FOLDER, exist_ok=True)
 
+'''def detect_edges(image_path):
 
-def detect_edges(image_path):
     if "_depth" in image_path:
         print(f"Imaginea {image_path} a fost deja procesată, o ignorăm.")
         return None
@@ -35,69 +36,45 @@ def detect_edges(image_path):
 
     output_path = os.path.join(PROCESSED_FOLDER, "edges_" + os.path.basename(image_path))
     cv2.imwrite(output_path, edges_colored)
-    return output_path
-
-
-POSTPROCESSED_FOLDER = "postprocessed"
-os.makedirs(POSTPROCESSED_FOLDER, exist_ok=True)
+    return output_path'''
 
 
 def generate_depth_map(image_path, source_folder="uploads"):
-    h_map_folder = "depth_maps"
-    os.makedirs(h_map_folder, exist_ok=True)
-
-    image_path = os.path.join(source_folder, os.path.basename(image_path))
+    H_MAPS_FOLDER = "depth_maps"
+    os.makedirs(H_MAPS_FOLDER, exist_ok=True)
 
     depth_map_filename = os.path.basename(image_path).replace(".jpg", "_depth.jpg")
-    depth_map_path = os.path.join(h_map_folder, depth_map_filename)
+    depth_map_path = os.path.join(H_MAPS_FOLDER, depth_map_filename)
     if os.path.exists(depth_map_path):
-        print(f"Harta de adâncime deja există: {depth_map_path}")
+        print(f"Depth map already exists: {depth_map_path}")
         return depth_map_path
 
-    transform = Compose([
-        Resize(384),
+    transform_function = Compose([
+        Resize(384),  # 384 inaltime si latimea redimensionata automat
         ToTensor(),
-        Normalize(mean=(0.5,), std=(0.5,))
+        Normalize(mean=(0.5,), std=(0.5,))  # tuplu cu un sg element
+        # formula pentru standardizare e pixel_normalizat = (pixel_original - media) / std
     ])
 
     model_type = "DPT_Large"
-    model = torch.hub.load("intel-isl/MiDaS", model_type)
-    model.eval()
+    model_imported_from_github = torch.hub.load("intel-isl/MiDaS", model_type)
+    model_imported_from_github.eval()  # switch on la predictii
 
-    img = Image.open(image_path).convert("RGB")
-    input_batch = transform(img).unsqueeze(0)
+    final_image_path = os.path.join(source_folder, os.path.basename(image_path))
 
-    # Generăm harta de adâncime
+    img_orig = Image.open(final_image_path).convert("RGB")
+    image_tensor = transform_function(img_orig).unsqueeze(0)  # pe pozitia0
+
+    # start generare harta de adancime
     with torch.no_grad():
-        prediction = model(input_batch)
+        prediction = model_imported_from_github(image_tensor)  # predictia propriu zisa
         depth_map = prediction.squeeze().cpu().numpy()
 
-    # Normalizarea și salvarea hărții
     depth_map_normalized = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
     cv2.imwrite(depth_map_path, depth_map_normalized)
-    print(f"Harta de adâncime generată și salvată: {depth_map_path}")
+    print(f"Depth map generated and saved: {depth_map_path}")
 
     return depth_map_path
-
-
-def preprocess_depth_map(depth_map_path):
-    """
-    Curăță și îmbunătățește harta de adâncime prin aplicarea unui filtru Gaussian.
-    """
-    depth_map = cv2.imread(depth_map_path, cv2.IMREAD_GRAYSCALE)
-    if depth_map is None:
-        raise ValueError(f"Nu s-a putut încărca harta de adâncime: {depth_map_path}")
-
-    # Aplicăm un filtru Gaussian pentru a reduce zgomotul
-    smoothed_depth_map = cv2.GaussianBlur(depth_map, (5, 5), 0)
-    output_path = depth_map_path.replace("depth_maps", "processed_dept_maps")
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    cv2.imwrite(output_path, smoothed_depth_map)
-
-    # Normalizăm valorile între 0 și 1
-    normalized_depth_map = smoothed_depth_map / 255.0
-
-    return normalized_depth_map
 
 
 '''def generate_3d_mesh(depth_map, edge_map=None):
@@ -224,16 +201,16 @@ def preprocess_depth_map(depth_map_path):
 
 def convert_to_gltf(obj_path, gltf_path):
     if not os.path.exists(obj_path):
-        raise ValueError(f"Fișierul OBJ nu există: {obj_path}")
+        raise ValueError(f"OBJ file does not exist: {obj_path}")
 
-    # Citim mesh-ul din fișierul OBJ
+    # citesc din obj
     mesh = o3d.io.read_triangle_mesh(obj_path)
     if not mesh.has_triangles():
-        raise ValueError("Mesh-ul citit nu conține triunghiuri valide.")
+        raise ValueError("The mesh does not contain valid triangles.")
 
-    # Scriem mesh-ul în format GLTF
+    # scriu in gltf
     o3d.io.write_triangle_mesh(gltf_path, mesh, write_triangle_uvs=True)
-    print(f"Mesh convertit și salvat în GLTF: {gltf_path}")
+    print(f"Mesh saved and converted to GLTF: {gltf_path}")
 
 
 GLTF_FOLDER = "gltf_meshes"
@@ -241,48 +218,50 @@ os.makedirs(GLTF_FOLDER, exist_ok=True)
 
 
 def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5):
-    original_image = cv2.imread(image_path)
-    original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)  # Convertim la RGB
+    original_image = cv2.imread(image_path)  # BGR default
+
+    original_image_RGB = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
 
     depth_map = cv2.imread(depth_map_path, cv2.IMREAD_GRAYSCALE)
     if depth_map is None:
-        raise ValueError(f"Nu s-a putut incarca harta de adancime: {depth_map_path}")
+        raise ValueError(f"Couldn't load depth map: {depth_map_path}")
 
-    # Normalizez adancimea intre 0 si o valoare max
+    # Normalizez adancimea
     depth_map = depth_map.astype(np.float32) / 255.0
     depth_map *= z_scale * 50.0
-    h, w = depth_map.shape
 
-    # Redimensionăm imaginea originală să corespundă dimensiunilor modelului 3D
-    original_image_resized = cv2.resize(original_image, (w, h))
-    print(f"Imagine originală redimensionată la: {w} x {h}")
+    height, width = depth_map.shape
 
-    # Creează puncte (vertices) din imagine și harta de adâncime
+    # ca sa corespunda cu meshul 3d
+    original_image_resized = cv2.resize(original_image_RGB, (width, height))
+    print(f"Original image redimensioned at: {width} x {height}")
+
+    # puncte din imagine pregatite pt mesh si culorile punctelor
     vertices = []
     colors = []
-    for y in range(h):
-        for x in range(w):
+    for y in range(height):
+        for x in range(width):
             z = depth_map[y, x]
-            vertices.append((x, h - y - 1, z))
+            vertices.append((x, height - y - 1, z))
             colors.append(original_image_resized[y, x] / 255.0)
 
     vertices = np.array(vertices, dtype=np.float32)
     colors = np.array(colors, dtype=np.float32)
 
     triangles = []
-    for y in range(h - 1):
-        for x in range(w - 1):
-            v0 = y * w + x
+    for y in range(height - 1):
+        for x in range(width - 1):
+            v0 = y * width + x  # linia*width+coloana
             v1 = v0 + 1
-            v2 = v0 + w
+            v2 = v0 + width  # cel de deasupra lui+ cati mai sunt pana la el
             v3 = v2 + 1
             triangles.append((v0, v2, v1))
             triangles.append((v1, v2, v3))
 
     triangles = np.array(triangles, dtype=np.int32)
 
-    # Creează mesh-ul 3D
     mesh = o3d.geometry.TriangleMesh()
+    # print(f"mesh: {mesh}") 0 points and 0 triangles
     mesh.vertices = o3d.utility.Vector3dVector(vertices)
     mesh.triangles = o3d.utility.Vector3iVector(triangles)
     mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
@@ -290,24 +269,28 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5):
     height, width, _ = original_image.shape
 
     # print(f"Dimensiuni imagine originala: {width} x {height} (width x height)")
-    x_min, x_max = np.min(vertices[:, 0]), np.max(vertices[:, 0])
-    y_min, y_max = np.min(vertices[:, 1]), np.max(vertices[:, 1])
-    print(f"Dimensiuni model 3D extrudat: width: {x_max - x_min:.2f}, height: {y_max - y_min:.2f}")
+    x_coords = vertices[:, 0]  # vertices[row, cloumn]
+    y_coords = vertices[:, 1]
 
-    # Verificăm fața triunghiurilor și o corectăm dacă e necesar
+    x_min, x_max = np.min(x_coords), np.max(x_coords)
+    y_min, y_max = np.min(y_coords), np.max(y_coords)
+    print(f"Dimensions of 3D extruded model: width: {x_max - x_min:.2f}, height: {y_max - y_min:.2f}")
+
+    # verif fata triunghiurilor si le reorintam corect
     mesh.compute_triangle_normals()
     mesh.orient_triangles()
 
-    base_name = os.path.splitext(os.path.basename(image_path))[0]
+    base_name = os.path.splitext(os.path.basename(image_path))[0] #painting-11
 
     obj_path = os.path.join(MESHES_FOLDER, f"{base_name}_extruded.obj")
+    #print(f"objjjjjjjjjj path {obj_path}") meshes\painting-11_extruded.obj
     o3d.io.write_triangle_mesh(obj_path, mesh, write_vertex_colors=True)
-    print(f"Mesh 3D cu textură salvat în: {obj_path}")
+    print(f"3D Mesh saved in: {obj_path}")
 
-    # Vizualizează mesh-ul
+    # vizualizare mesh
     # o3d.visualization.draw_geometries([mesh])
 
-    # Convertim OBJ în GLTF
+    # OBJ -> GLTF
     gltf_path = os.path.join(GLTF_FOLDER, f"{base_name}_extruded.gltf")
     convert_to_gltf(obj_path, gltf_path)
 
