@@ -213,30 +213,31 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5):
     depth_map = depth_map.astype(np.float32) / 255.0
     depth_map *= z_scale * 50.0
 
-    height, width = depth_map.shape
+    depth_map_height, depth_map_width = depth_map.shape
 
     # ca sa corespunda cu meshul 3d
-    original_image_resized = cv2.resize(original_image_RGB, (width, height))
-    print(f"Original image redimensioned at: {width} x {height}")
+    original_image_resized = cv2.resize(original_image_RGB, (depth_map_width, depth_map_height))
+    print(f"Original image redimensioned at: {depth_map_width} x {depth_map_height}")
 
     # puncte din imagine pregatite pt mesh si culorile punctelor
-    vertices = []
+    mesh_vertices = []
     colors = []
-    for y in range(height):
-        for x in range(width):
+    for y in range(depth_map_height):
+        for x in range(depth_map_width):
             z = depth_map[y, x]
-            vertices.append((x, height - y - 1, z))
-            colors.append(original_image_resized[y, x] / 255.0)
+            color = original_image_resized[y, x] / 255.0
+            mesh_vertices.append((x, depth_map_height - y - 1, z))
+            colors.append(color)
 
-    vertices = np.array(vertices, dtype=np.float32)
+    mesh_vertices = np.array(mesh_vertices, dtype=np.float32)
     colors = np.array(colors, dtype=np.float32)
 
     triangles = []
-    for y in range(height - 1):
-        for x in range(width - 1):
-            v0 = y * width + x  # linia*width+coloana
+    for y in range(depth_map_height - 1):
+        for x in range(depth_map_width - 1):
+            v0 = y * depth_map_width + x  # linia*width+coloana
             v1 = v0 + 1
-            v2 = v0 + width  # cel de deasupra lui+ cati mai sunt pana la el
+            v2 = v0 + depth_map_width  # cel de deasupra lui+ cati mai sunt pana la el
             v3 = v2 + 1
             triangles.append((v0, v2, v1))
             triangles.append((v1, v2, v3))
@@ -245,15 +246,15 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5):
 
     mesh = o3d.geometry.TriangleMesh()
     # print(f"mesh: {mesh}") 0 points and 0 triangles
-    mesh.vertices = o3d.utility.Vector3dVector(vertices)
+    mesh.vertices = o3d.utility.Vector3dVector(mesh_vertices)
     mesh.triangles = o3d.utility.Vector3iVector(triangles)
     mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
 
-    height, width, _ = original_image.shape
+    original_image_height, original_image_width, _ = original_image.shape
 
     # print(f"Dimensiuni imag originala: {width} x {height} (width x height)")
-    x_coords = vertices[:, 0]  # vertices[row, cloumn]
-    y_coords = vertices[:, 1]
+    x_coords = mesh_vertices[:, 0]  # vertices[row, cloumn]
+    y_coords = mesh_vertices[:, 1]
 
     x_min, x_max = np.min(x_coords), np.max(x_coords)
     y_min, y_max = np.min(y_coords), np.max(y_coords)
