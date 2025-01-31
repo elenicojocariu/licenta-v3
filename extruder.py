@@ -15,35 +15,18 @@ os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 MESHES_FOLDER = "meshes"
 os.makedirs(MESHES_FOLDER, exist_ok=True)
 
-'''def detect_edges(image_path):
-
-    if "_depth" in image_path:
-        print(f"Imaginea {image_path} a fost deja procesată, o ignorăm.")
-        return None
-
-    output_path = os.path.join(PROCESSED_FOLDER, "edges_" + os.path.basename(image_path))
-    if os.path.exists(output_path):
-        print(f"Fisierul pentru margini exista deja: {output_path}")
-        return output_path
-
-    image = cv2.imread(image_path)
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    edges = cv2.Canny(gray_image, threshold1=30, threshold2=100)
-
-    # Combin contururile detectate cu imaginea color
-    edges_colored = cv2.bitwise_and(image, image, mask=edges)
-
-    output_path = os.path.join(PROCESSED_FOLDER, "edges_" + os.path.basename(image_path))
-    cv2.imwrite(output_path, edges_colored)
-    return output_path'''
-
 
 def generate_depth_map(image_path, source_folder="uploads"):
     H_MAPS_FOLDER = "depth_maps"
     os.makedirs(H_MAPS_FOLDER, exist_ok=True)
 
-    depth_map_filename = os.path.basename(image_path).replace(".jpg", "_depth.jpg")
+    if image_path.endswith(".jpg"):
+        depth_map_filename = os.path.basename(image_path).replace(".jpg", "_depth.jpg")
+    elif image_path.endswith(".png"):
+        depth_map_filename = os.path.basename(image_path).replace(".png", "_depth.png")
+    else:
+        raise ValueError("Unsupported type format. Only .jpg and .png extensions are accepted.")
+
     depth_map_path = os.path.join(H_MAPS_FOLDER, depth_map_filename)
     if os.path.exists(depth_map_path):
         print(f"Depth map already exists: {depth_map_path}")
@@ -268,7 +251,7 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5):
 
     height, width, _ = original_image.shape
 
-    # print(f"Dimensiuni imagine originala: {width} x {height} (width x height)")
+    # print(f"Dimensiuni imag originala: {width} x {height} (width x height)")
     x_coords = vertices[:, 0]  # vertices[row, cloumn]
     y_coords = vertices[:, 1]
 
@@ -280,10 +263,10 @@ def create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5):
     mesh.compute_triangle_normals()
     mesh.orient_triangles()
 
-    base_name = os.path.splitext(os.path.basename(image_path))[0] #painting-11
+    base_name = os.path.splitext(os.path.basename(image_path))[0]  # painting-11
 
     obj_path = os.path.join(MESHES_FOLDER, f"{base_name}_extruded.obj")
-    #print(f"objjjjjjjjjj path {obj_path}") meshes\painting-11_extruded.obj
+    # print(f"objjjjjjjjjj path {obj_path}") meshes\painting-11_extruded.obj
     o3d.io.write_triangle_mesh(obj_path, mesh, write_vertex_colors=True)
     print(f"3D Mesh saved in: {obj_path}")
 

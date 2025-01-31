@@ -5,33 +5,28 @@ UPLOAD_FOLDER = "uploads"
 
 
 def process_all_depth_maps(depth_maps_dir):
-    """
-   Procesează toate hărțile de adâncime și generează modele 3D cu textură.
-   """
 
     if not os.path.exists(depth_maps_dir):
-        print(f"Directorul {depth_maps_dir} nu există!")
+        print(f"Directory {depth_maps_dir} does not exist")
         return
 
     for file_name in os.listdir(depth_maps_dir):
         depth_map_path = os.path.join(depth_maps_dir, file_name)
 
-        # Verificăm dacă fișierul este o hartă de adâncime validă
         if not file_name.endswith(("_depth.jpg", "_depth.png")):
-            print(f"Fișierul {file_name} nu este o hartă de adâncime validă. Se trece peste.")
+            print(f"This file {file_name} is not a valid depth map.")
             continue
 
-        # Eliminăm sufixul "_depth" pentru a găsi imaginea originală
+        # elimin sufix pt a ajunge la img originala
         original_image_name = file_name.replace("_depth", "")
         original_image_path = os.path.join(UPLOAD_FOLDER, original_image_name)
 
-        # Verificăm dacă imaginea originală există
         if not os.path.exists(original_image_path):
-            print(f"Fișierul original {original_image_path} nu există. Se trece peste.")
+            print(f"This file {original_image_path} does not exist")
             continue
 
-        print(f"Procesăm fișierul: {depth_map_path} cu imaginea originală: {original_image_path}")
+        print(f"Processing file {depth_map_path} with original image {original_image_path}")
         try:
             create_3d_mesh_with_texture(original_image_path, depth_map_path, z_scale=1.5)
         except Exception as e:
-            print(f"Eroare la procesarea fișierului {depth_map_path}: {e}")
+            print(f"Error at processing {depth_map_path}: {e}")

@@ -30,20 +30,19 @@ def extrude():
     depth_map_path = os.path.join("depth_maps", depth_map_filename)
 
     if not os.path.exists(depth_map_path):
-        print(f"Generăm harta de adâncime pentru {filename}")
+        print(f"Generating depth map for {filename}.....")
         depth_map_path = generate_depth_map(filename, source_folder=UPLOAD_FOLDER)
     else:
-        print(f"Harta de adâncime deja există: {depth_map_path}")
+        print(f"Depth map already exists: {depth_map_path}")
 
-    # Generăm mesh-ul 3D cu textura folosind imaginea încărcată
     gltf_filename = f"{os.path.splitext(filename)[0]}_extruded.gltf"
     gltf_path = os.path.join("gltf_meshes", gltf_filename)
 
     if not os.path.exists(gltf_path):
-        print(f"Generăm mesh-ul GLTF pentru {filename}")
-        gltf_path = create_3d_mesh_with_texture(file_path, depth_map_path, z_scale=1.5)
+        print(f"Generating GLTF mesh for {filename}.....")
+        created_gltf_path = create_3d_mesh_with_texture(file_path, depth_map_path, z_scale=1.5)
     else:
-        print(f"Mesh-ul GLTF deja există: {gltf_path}")
+        print(f"GLTF mesh already exists: {gltf_path}")
 
     return jsonify({
         "message": "extrusion complted",
@@ -55,15 +54,16 @@ def extrude():
 @app.route('/depth_exists', methods=['POST'])
 def depth_exists():
     data = request.json
-    image_name = data.get('image_name')
 
-    # Calea imaginii din depth
+    if 'image_name' not in data:
+        return "No file for depth_map uploaded", 400
+
+    image_name = data.get('image_name')
     depth_path = os.path.join("depth_maps", image_name)
 
-    if os.path.exists(depth_path):  # Verifică dacă imaginea din depth există
+    if os.path.exists(depth_path):
         return jsonify({"exists": True, "processed_image_path": f"/processed/edges_{image_name}"})
 
-    # Chiar dacă imaginea din depth nu există, returnăm calea processed
     return jsonify({"exists": False, "processed_image_path": f"/processed/edges_{image_name}"})
 
 
