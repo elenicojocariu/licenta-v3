@@ -30,7 +30,7 @@ def extrude():
     depth_map_path = os.path.join("depth_maps", depth_map_filename)
 
     if not os.path.exists(depth_map_path):
-        print(f"Generating depth map for {filename}.....")
+        #print(f"Generating depth map for {filename}.....")
         depth_map_path = generate_depth_map(filename, source_folder=UPLOAD_FOLDER)
     else:
         print(f"Depth map already exists: {depth_map_path}")
@@ -63,13 +63,16 @@ def depth_exists():
 
     if os.path.exists(depth_path):
         return jsonify({"exists": True, "processed_image_path": f"/processed/edges_{image_name}"})
+    print(f"Generating depth map for {image_name}...")
+    generated_path = generate_depth_map(image_name, source_folder="uploads")
 
-    return jsonify({"exists": False, "processed_image_path": f"/processed/edges_{image_name}"})
+    return jsonify({"exists": True, "processed_image_path": generated_path})
 
 
 @app.route('/gltf_exists', methods=['POST'])
 def gltf_exists():
     data = request.json
+
     image_name = data.get('image_name')
 
     gltf_path = os.path.join("gltf_meshes", f"{os.path.splitext(image_name)[0]}_extruded.gltf")
@@ -77,8 +80,12 @@ def gltf_exists():
     if os.path.exists(gltf_path):
         return jsonify({"exists": True, "gltf_path": f"/gltf_meshes/{os.path.basename(gltf_path)}"})
 
-    return jsonify({"exists": False, "gltf_path": None})
-
+    print(f"Generating GLTF for {image_name}...")
+    depth_map_path = os.join("depth_maps", f"{os.path.splitext(image_name)[0]}_depth.jpg")
+    if not os.path.exists(depth_map_path):
+        depth_map_path = generate_depth_map(image_name, source_folder="uploads")
+    generate_gltf_path = create_3d_mesh_with_texture(image_name, depth_map_path, z_scale=1.5)
+    return jsonify({"exists": True, "gltf_path": f"/gltf_meshes/{os.path.basename(generate_gltf_path)}"})
 
 @app.route('/send_mesh', methods=['POST'])
 def send_mesh():
