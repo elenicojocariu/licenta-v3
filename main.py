@@ -1,3 +1,4 @@
+import torch
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -14,7 +15,10 @@ CORS(app)
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
+'''if torch.cuda.is_available():
+    print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+else:
+    print("Using CPU")'''
 @app.route('/extrude', methods=['POST'])
 def extrude():
     if 'image' not in request.files:
@@ -24,6 +28,7 @@ def extrude():
     filename = secure_filename(file.filename)
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     file.save(file_path)
+    #time.sleep(0.2)
 
     # verif sau gen harta de  h
     depth_map_filename = f"{os.path.splitext(filename)[0]}_depth.jpg"
@@ -59,10 +64,11 @@ def depth_exists():
         return "No file for depth_map uploaded", 400
 
     image_name = data.get('image_name')
-    depth_path = os.path.join("depth_maps", image_name)
-
+    filename_no_extension = os.path.splitext(image_name)[0]  # "painting-11"
+    depth_map_filename = f"{filename_no_extension}_depth.jpg"
+    depth_path = os.path.join("depth_maps", depth_map_filename)
     if os.path.exists(depth_path):
-        return jsonify({"exists": True, "processed_image_path": f"/processed/edges_{image_name}"})
+        return jsonify({"exists": True, "processed_image_path": f"/depth_maps/{depth_map_filename}"})
     # print(f"Generating depth map for {image_name}...")
     generated_path = generate_depth_map(image_name, source_folder="uploads")
 
@@ -83,11 +89,12 @@ def gltf_exists():
     # print(f"Generating GLTF for {image_name}...")
     filename_no_extension = os.path.splitext(image_name)[0] #painting-11
     depth_map_filename = f"{filename_no_extension}_depth.jpg"
-    depth_map_path = os.join("depth_maps", depth_map_filename)
+    depth_map_path = os.path.join("depth_maps", depth_map_filename)
 
     if not os.path.exists(depth_map_path):
         depth_map_path = generate_depth_map(image_name, source_folder="uploads")
-    generate_gltf_path = create_3d_mesh_with_texture(image_name, depth_map_path, z_scale=1.5)
+    image_path = os.path.join("uploads", image_name)
+    generate_gltf_path = create_3d_mesh_with_texture(image_path, depth_map_path, z_scale=1.5)
     return jsonify({"exists": True, "gltf_path": f"/gltf_meshes/{os.path.basename(generate_gltf_path)}"})
 
 
